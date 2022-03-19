@@ -119,6 +119,11 @@ export class Room {
         this.broadcast("join", { uuid: player.uuid, name: player.name });
     }
 
+    removePlayer(player: GamePlayer) {
+        this.players = this.players.filter(p => p !== player);
+        this.broadcast("leave", { uuid: player.uuid });
+    }
+
     broadcast(type: GameBroadcastEvent["type"], data: GameBroadcastEvent["data"]) {
         this.players.forEach(player => {
             player.send(type, data);

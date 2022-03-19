@@ -43,7 +43,7 @@ router.get("/rooms", ctx => {
     ctx.body = Object.entries(rooms).map(([uuid, room]) => ({
         uuid: room.uuid,
         name: room.name,
-        player_count: room.players.length,
+        player_count: room.players.filter(p => p.connected).length,
     }));
 });
 
@@ -94,13 +94,13 @@ router.get("/room/:id/ws", async (ctx, next) => {
         }
         const data = jwt.decode(authorizationToken, { json: true });
         if (data && data.name && data.sub) {
-            if (!room.players.find(player => player.uuid === data.sub)) {
-                new GamePlayer(data.name, room, ws, data.sub, room.players.length === 0);
+            const oldPlayer = room.players.find(player => player.uuid === data.sub);
+            if (oldPlayer) {
+                oldPlayer.socket.close(1008, "Connected from other location");
+                oldPlayer.socket = ws;
+                oldPlayer.connected = true;
             } else {
-                ws.close(1008, "Player already in room");
-                ctx.status = 403;
-                ctx.body = { error: "Player already in room" };
-                return;
+                new GamePlayer(data.name, room, ws, data.sub, room.players.length === 0);
             }
         }
     }
