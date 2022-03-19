@@ -1,8 +1,13 @@
+export const dicts = ["sv_SE", "en_US"] as const;
+
+export type DictionaryName = typeof dicts[number];
+
 export interface PlayerData {
     uuid: string;
     name: string;
     text: string;
     connected: boolean;
+    alive: boolean;
 }
 
 export type uuid = string;
@@ -14,6 +19,8 @@ export interface Rules {
     minRoundTimer: number;
     minNewBombTimer: number;
     maxNewBombTimer: number;
+    startingLives: number;
+    maxLives: number;
 }
 
 export interface BaseEvent {
@@ -34,6 +41,7 @@ export interface ChatBroadcastEvent extends BaseEvent {
     data: {
         text: string;
         from: uuid;
+        at: number;
     };
 }
 
@@ -51,7 +59,7 @@ export interface RoundEvent extends BaseEvent {
     type: "round";
     data: {
         prompt: string;
-    }
+    };
 }
 
 export interface TextEvent extends BaseEvent {
@@ -77,10 +85,20 @@ export interface PongEvent extends BaseEvent {
 export interface GameStateEvent extends BaseEvent {
     type: "state";
     data: {
-        currentPlayer?: uuid,
-        prompt?: string,
-        players: PlayerData[],
-        rules: Rules,
+        prompt: string | null;
+        players: PlayerData[];
+        playingPlayers: uuid[];
+        currentPlayerIndex: number;
+        rules: Rules;
+        language: DictionaryName;
+    };
+}
+
+export interface DamageBroadcastEvent extends BaseEvent {
+    type: "damage";
+    data: {
+        lives: number;
+        player: uuid;
     };
 }
 
@@ -92,7 +110,7 @@ export interface TextBroadcastEvent extends BaseEvent {
     };
 }
 
-export type GameBroadcastEvent = TextBroadcastEvent | ChatBroadcastEvent | JoinBroadcastEvent | LeaveBroadcastEvent;
+export type GameBroadcastEvent = TextBroadcastEvent | ChatBroadcastEvent | JoinBroadcastEvent | LeaveBroadcastEvent | DamageBroadcastEvent | GameStateEvent;
 export type GameEvent = ChatEvent | RoundEvent | TextEvent | PingEvent | RuleEvent | GameStateEvent | PongEvent;
 
 export interface RoomCreationData {

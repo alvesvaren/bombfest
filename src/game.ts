@@ -1,8 +1,9 @@
 import { jwtSecret } from "./secrets.json";
 import jwt from "jsonwebtoken";
 import WebSocket from "ws";
-import { BaseEvent, GameBroadcastEvent, GameEvent, nonce, PlayerData, Rules, uuid } from "./interfaces";
+import { BaseEvent, DictionaryName, GameBroadcastEvent, GameEvent, GameStateEvent, nonce, PlayerData, Rules, uuid } from "./interfaces";
 import { randomUUID } from "crypto";
+import { checkValid, getRandomPrompt } from "./wordmanager";
 
 export const validateToken = (token: string) => {
     return jwt.verify(token, jwtSecret);
@@ -34,7 +35,9 @@ export class GamePlayer extends Player {
     connected: boolean = true;
     socket: WebSocket;
     room: Room;
+    alive: boolean = true;
     admin: boolean;
+    lives: number = 0;
 
     constructor(name: string, room: Room, socket: WebSocket, uuid: string, admin: boolean) {
         super(name, uuid);
@@ -47,19 +50,14 @@ export class GamePlayer extends Player {
 
     initiatePlayer() {
         this.connected = true;
+        this.lives = this.room.rules.startingLives;
         this.socket.on("message", this.handleSocketMessage.bind(this));
         console.log(`Player ${this.name} connected`);
         this.socket.on("close", () => {
             this.connected = false;
             console.log(`Player ${this.name} disconnected`);
         });
-        this.send("state", {
-            currentPlayer: this.room.currentPlayer?.uuid,
-            prompt: this.room.prompt,
-            players: this.room.players.map(player => player.objectify()),
-            rules: this.room.rules,
-        });
-
+        this.send("state", this.room.objectify());
     }
 
     send<T extends GameEvent | GameBroadcastEvent>(type: T["type"], data: T["data"], nonce?: nonce) {
@@ -74,6 +72,7 @@ export class GamePlayer extends Player {
             name: this.name,
             text: this.text,
             connected: this.connected,
+            alive: this.alive,
         };
     }
 
@@ -83,6 +82,9 @@ export class GamePlayer extends Player {
             switch (data.type) {
                 case "chat":
                     this.room.broadcast("chat", { text: data.data.text, from: this.uuid });
+                    (async () => {
+                        console.log(`The word ${data.data.text} is ${(await checkValid(data.data.text, "sv_SE")) ? "" : "not "}a valid swedish word`);
+                    })();
                     break;
                 case "text":
                     this.text = data.data.text;
@@ -100,23 +102,27 @@ export class GamePlayer extends Player {
 export class Room {
     uuid: string;
     name: string;
-    players: GamePlayer[];
-    currentPlayer: Player | null = null;
+    players: GamePlayer[] = [];
+    playingPlayers: GamePlayer[] = [];
+    currentPlayerIndex: number = 0;
     isPrivate: boolean;
+    language: DictionaryName = "sv_SE";
     prompt: string | null = null;
+    roundTimer?: NodeJS.Timeout;
     rules: Rules = {
         maxNewBombTimer: 30,
         minNewBombTimer: 10,
         minRoundTimer: 5,
         minWordsPerPrompt: 500,
         maxWordsPerPrompt: undefined,
+        startingLives: 2,
+        maxLives: 3,
     };
 
     constructor(name: string, isPrivate: boolean = false) {
         this.uuid = randomUUID();
         this.isPrivate = isPrivate;
         this.name = name;
-        this.players = [];
     }
 
     addPlayer(player: GamePlayer) {
@@ -135,7 +141,53 @@ export class Room {
         });
     }
 
+    objectify(): GameStateEvent["data"] {
+        return {
+            players: this.players.map(player => player.objectify()),
+            playingPlayers: this.playingPlayers.map(player => player.uuid),
+            currentPlayerIndex: this.currentPlayerIndex,
+            language: this.language,
+            prompt: this.prompt,
+            rules: this.rules,
+        };
+    }
+
     sendChat(from: GamePlayer, text: string) {
-        this.broadcast("chat", { from: from.uuid, text });
+        this.broadcast("chat", { from: from.uuid, text, at: Math.floor(new Date().getTime() / 1000) });
+    }
+
+    startGame() {
+        this.playingPlayers = this.players.filter(player => player.connected);
+        this.playingPlayers.forEach(player => {
+            player.lives = this.rules.startingLives;
+            player.text = "";
+            player.alive = true;
+        });
+        this.currentPlayerIndex = 0;
+        this.broadcast("state", this.objectify());
+        this.nextPrompt();
+    }
+
+    startRoundTimer() {
+        length = Math.ceil(Math.random() * (this.rules.maxNewBombTimer - this.rules.minNewBombTimer)) + this.rules.minNewBombTimer;
+        if (length < this.rules.minRoundTimer) {
+            length = this.rules.minRoundTimer;
+        }
+        this.roundTimer = setTimeout(() => {
+            this.nextPrompt();
+            this.getCurrentPlayer().lives -= 1;
+            this.broadcast("damage", { player: this.getCurrentPlayer().uuid, lives: this.getCurrentPlayer().lives });
+        }, length);
+    }
+
+    getCurrentPlayer() {
+        return this.playingPlayers[this.currentPlayerIndex % this.playingPlayers.length] as GamePlayer;
+    }
+
+    nextPrompt() {
+        this.prompt = getRandomPrompt(this.language, this.rules) || null;
+        this.currentPlayerIndex += 1;
+        this.broadcast("state", this.objectify());
+        this.startRoundTimer();
     }
 }
