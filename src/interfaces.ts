@@ -6,6 +6,7 @@ export interface PlayerData {
 }
 
 export type uuid = string;
+export type nonce = number | string;
 
 export interface Rules {
     minWordsPerPrompt?: number;
@@ -18,7 +19,7 @@ export interface Rules {
 export interface BaseEvent {
     type: string;
     data?: any;
-    nonce?: number | string;
+    nonce?: nonce;
 }
 
 export interface ChatEvent extends BaseEvent {
@@ -43,11 +44,6 @@ export interface JoinBroadcastEvent extends BaseEvent {
 
 export interface LeaveBroadcastEvent extends BaseEvent {
     type: "leave";
-    data: Pick<PlayerData, "uuid">;
-}
-
-export interface KickEvent extends BaseEvent {
-    type: "kicked";
     data: Pick<PlayerData, "uuid">;
 }
 
@@ -97,7 +93,7 @@ export interface TextBroadcastEvent extends BaseEvent {
 }
 
 export type GameBroadcastEvent = TextBroadcastEvent | ChatBroadcastEvent | JoinBroadcastEvent | LeaveBroadcastEvent;
-export type GameEvent = ChatEvent | KickEvent | RoundEvent | TextEvent | PingEvent | RuleEvent | GameStateEvent | PongEvent;
+export type GameEvent = ChatEvent | RoundEvent | TextEvent | PingEvent | RuleEvent | GameStateEvent | PongEvent;
 
 export interface RoomCreationData {
     name: string;

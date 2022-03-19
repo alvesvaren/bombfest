@@ -12,7 +12,7 @@ import { RoomCreationData } from "./interfaces";
 import { randomUUID } from "crypto";
 
 const config = {
-    port: 3000,
+    port: 3001,
 };
 
 const app = new Koa();
@@ -70,6 +70,7 @@ router.post("/rooms", ctx => {
             uuid: room.uuid,
         };
     } else {
+        ctx.status = 401;
         ctx.body = { error: "Invalid authorization token" };
     }
 });
@@ -94,16 +95,18 @@ router.get("/room/:id/ws", async (ctx, next) => {
         }
         const data = jwt.decode(authorizationToken, { json: true });
         if (data && data.name && data.sub) {
-            const oldPlayer = room.players.find(player => player.uuid === data.sub);
-            if (oldPlayer) {
-                oldPlayer.socket.close(1008, "Connected from other location");
-                oldPlayer.socket = ws;
-                oldPlayer.connected = true;
+            const player = room.players.find(player => player.uuid === data.sub);
+            if (player) {
+                player.socket.close(1008, "Connected from other location");
+                player.socket = ws;
+                player.initiatePlayer();
             } else {
                 new GamePlayer(data.name, room, ws, data.sub, room.players.length === 0);
             }
         }
     }
+
+    ctx.status = 204;
 });
 
 app.use(koaLogger());
@@ -115,5 +118,5 @@ app.use(router.routes());
 app.use(router.allowedMethods());
 
 app.listen(config.port, () => {
-    console.log(`Server listening on *:3000, see http://127.0.0.1:${config.port}`);
+    console.log(`Server listening on 0.0.0.0:${config.port}, see http://127.0.0.1:${config.port}`);
 });

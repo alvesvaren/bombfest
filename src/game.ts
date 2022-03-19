@@ -1,7 +1,7 @@
 import { jwtSecret } from "./secrets.json";
 import jwt from "jsonwebtoken";
 import WebSocket from "ws";
-import { BaseEvent, GameBroadcastEvent, GameEvent, PlayerData, Rules, uuid } from "./interfaces";
+import { BaseEvent, GameBroadcastEvent, GameEvent, nonce, PlayerData, Rules, uuid } from "./interfaces";
 import { randomUUID } from "crypto";
 
 export const validateToken = (token: string) => {
@@ -41,16 +41,28 @@ export class GamePlayer extends Player {
         this.room = room;
         this.socket = socket;
         this.admin = admin;
-
+        this.initiatePlayer();
         this.room.addPlayer(this);
-        this.socket.on("message", this.handleSocketMessage.bind(this));
-        this.socket.on("close", () => {
-            this.connected = false;
-        });
     }
 
-    
-    send(type: (GameEvent | GameBroadcastEvent)["type"], data: (GameEvent | GameBroadcastEvent)["data"], nonce?: number | string) {
+    initiatePlayer() {
+        this.connected = true;
+        this.socket.on("message", this.handleSocketMessage.bind(this));
+        console.log(`Player ${this.name} connected`);
+        this.socket.on("close", () => {
+            this.connected = false;
+            console.log(`Player ${this.name} disconnected`);
+        });
+        this.send("state", {
+            currentPlayer: this.room.currentPlayer?.uuid,
+            prompt: this.room.prompt,
+            players: this.room.players.map(player => player.objectify()),
+            rules: this.room.rules,
+        });
+
+    }
+
+    send<T extends GameEvent | GameBroadcastEvent>(type: T["type"], data: T["data"], nonce?: nonce) {
         if (this.socket) {
             this.socket.send(JSON.stringify({ type, data, nonce }));
         }
@@ -66,21 +78,21 @@ export class GamePlayer extends Player {
     }
 
     handleSocketMessage(message: string) {
-        const data: GameEvent = JSON.parse(message);
-        switch (data.type) {
-            case "chat":
-                this.room.broadcast("chat", { text: data.data.text, from: this.uuid });
-                break;
-            case "kicked":
-                this.connected = false;
-                this.socket?.close();
-                break;
-            case "text":
-                this.text = data.data.text;
-                break;
-            case "ping":
-                this.send("pong", undefined, data.nonce);
-                break;
+        try {
+            const data: GameEvent = JSON.parse(message);
+            switch (data.type) {
+                case "chat":
+                    this.room.broadcast("chat", { text: data.data.text, from: this.uuid });
+                    break;
+                case "text":
+                    this.text = data.data.text;
+                    break;
+                case "ping":
+                    this.send("pong", undefined, data.nonce);
+                    break;
+            }
+        } catch (e) {
+            console.error(e);
         }
     }
 }
@@ -109,13 +121,6 @@ export class Room {
 
     addPlayer(player: GamePlayer) {
         this.players.push(player);
-        player.send("state", {
-            currentPlayer: this.currentPlayer?.uuid,
-            prompt: this.prompt,
-            players: this.players.map(player => player.objectify()),
-            rules: this.rules,
-        })
-
         this.broadcast("join", { uuid: player.uuid, name: player.name });
     }
 
