@@ -69,6 +69,13 @@ export interface TextEvent extends BaseEvent {
     };
 }
 
+export interface StartBroadcastEvent extends BaseEvent {
+    type: "start";
+    data: {
+        at: number;
+    };
+}
+
 export interface RuleEvent extends BaseEvent {
     type: "rules";
     data: Rules;
@@ -102,6 +109,25 @@ export interface DamageBroadcastEvent extends BaseEvent {
     };
 }
 
+export interface PlayEvent extends BaseEvent {
+    type: "play";
+    data: {};
+}
+
+export interface ConnectBroadcastEvent extends BaseEvent {
+    type: "connect";
+    data: {
+        player: string;
+    };
+}
+
+export interface DisconnectBroadcastEvent extends BaseEvent {
+    type: "disconnect";
+    data: {
+        player: string;
+    };
+}
+
 export interface TextBroadcastEvent extends BaseEvent {
     type: "text";
     data: {
@@ -110,8 +136,17 @@ export interface TextBroadcastEvent extends BaseEvent {
     };
 }
 
-export type GameBroadcastEvent = TextBroadcastEvent | ChatBroadcastEvent | JoinBroadcastEvent | LeaveBroadcastEvent | DamageBroadcastEvent | GameStateEvent;
-export type GameEvent = ChatEvent | RoundEvent | TextEvent | PingEvent | RuleEvent | GameStateEvent | PongEvent;
+export type GameBroadcastEvent =
+    | TextBroadcastEvent
+    | ChatBroadcastEvent
+    | JoinBroadcastEvent
+    | LeaveBroadcastEvent
+    | DamageBroadcastEvent
+    | GameStateEvent
+    | StartBroadcastEvent
+    | DisconnectBroadcastEvent
+    | ConnectBroadcastEvent;
+export type GameEvent = ChatEvent | RoundEvent | TextEvent | PingEvent | RuleEvent | GameStateEvent | PongEvent | PlayEvent;
 
 export interface RoomCreationData {
     name: string;

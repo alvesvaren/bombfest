@@ -92,6 +92,9 @@ export class GamePlayer extends Player {
                 case "ping":
                     this.send("pong", undefined, data.nonce);
                     break;
+                case "play":
+                    this.room.addPlayingPlayer(this);
+                    break;
             }
         } catch (e) {
             console.error(e);
@@ -109,6 +112,7 @@ export class Room {
     language: DictionaryName = "sv_SE";
     prompt: string | null = null;
     roundTimer?: NodeJS.Timeout;
+    startTimer?: NodeJS.Timeout;
     rules: Rules = {
         maxNewBombTimer: 30,
         minNewBombTimer: 10,
@@ -130,6 +134,15 @@ export class Room {
         this.broadcast("join", { uuid: player.uuid, name: player.name });
     }
 
+    addPlayingPlayer(player: GamePlayer) {
+        this.playingPlayers.push(player);
+        this.broadcastState();
+
+        if (this.playingPlayers.length >= 2) {
+            this.startGame();
+        }
+    }
+
     removePlayer(player: GamePlayer) {
         this.players = this.players.filter(p => p !== player);
         this.broadcast("leave", { uuid: player.uuid });
@@ -139,6 +152,10 @@ export class Room {
         this.players.forEach(player => {
             player.send(type, data);
         });
+    }
+
+    broadcastState() {
+        this.broadcast("state", this.objectify());
     }
 
     objectify(): GameStateEvent["data"] {
@@ -164,7 +181,11 @@ export class Room {
             player.alive = true;
         });
         this.currentPlayerIndex = 0;
-        this.broadcast("state", this.objectify());
+        this.broadcastState();
+        this.broadcast("start", { at: Math.floor(new Date().getTime() / 1000) + 15 });
+        this.startTimer = setTimeout(() => {
+            this.nextPrompt();
+        }, 15000);
         this.nextPrompt();
     }
 
@@ -174,9 +195,9 @@ export class Room {
             length = this.rules.minRoundTimer;
         }
         this.roundTimer = setTimeout(() => {
-            this.nextPrompt();
             this.getCurrentPlayer().lives -= 1;
             this.broadcast("damage", { player: this.getCurrentPlayer().uuid, lives: this.getCurrentPlayer().lives });
+            this.nextPrompt();
         }, length);
     }
 
@@ -187,7 +208,7 @@ export class Room {
     nextPrompt() {
         this.prompt = getRandomPrompt(this.language, this.rules) || null;
         this.currentPlayerIndex += 1;
-        this.broadcast("state", this.objectify());
+        this.broadcastState();
         this.startRoundTimer();
     }
 }
