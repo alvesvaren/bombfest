@@ -84,9 +84,6 @@ export class GamePlayer extends Player {
             switch (data.type) {
                 case "chat":
                     this.room.broadcast("chat", { text: data.data.text, from: this.uuid });
-                    (async () => {
-                        console.log(`The word ${data.data.text} is ${(await checkValid(data.data.text, "sv_SE")) ? "" : "not "}a valid swedish word`);
-                    })();
                     break;
                 case "text":
                     this.text = data.data.text;
@@ -98,6 +95,8 @@ export class GamePlayer extends Player {
                 case "play":
                     this.room.addPlayingPlayer(this);
                     break;
+                case "submit":
+                    this.room.submitWord(this, data.data.text);
             }
         } catch (e) {
             console.error(e);
@@ -186,7 +185,27 @@ export class Room {
         }, 15000);
     }
 
-    startRoundTimer() {
+    async submitWord(from: GamePlayer, word: string) {
+        word = word.toLowerCase();
+        if (this.prompt && !word.includes(this.prompt)) {
+            return;
+        }
+
+        const isCorrect = await checkValid(word, this.language);
+        
+        if (isCorrect) {
+            this.passBomb(from);
+        } else {
+            this.broadcast("incorrect", { for: from.uuid });
+        }
+    }
+
+    passBomb(from: GamePlayer) {
+        this.broadcast("correct", { for: from.uuid });
+        this.nextPrompt();
+    }
+
+    startBombTimer() {
         let length = Math.ceil(Math.random() * (this.rules.maxNewBombTimer - this.rules.minNewBombTimer)) + this.rules.minNewBombTimer;
         if (length < this.rules.minRoundTimer) {
             length = this.rules.minRoundTimer;
@@ -217,6 +236,6 @@ export class Room {
         this.prompt = getRandomPrompt(this.language, this.rules) || null;
         this.currentPlayerIndex += 1;
         this.broadcastState();
-        this.startRoundTimer();
+        this.startBombTimer();
     }
 }

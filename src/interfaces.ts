@@ -139,6 +139,20 @@ export interface TextBroadcastEvent extends BaseEvent {
     };
 }
 
+export interface IncorrectBroadcastEvent extends BaseEvent {
+    type: "incorrect";
+    data: {
+        for: uuid;
+    };
+}
+
+export interface CorrectBroadcastEvent extends BaseEvent {
+    type: "correct";
+    data: {
+        for: uuid;
+    };
+}
+
 export type GameBroadcastEvent =
     | TextBroadcastEvent
     | ChatBroadcastEvent
@@ -146,7 +160,9 @@ export type GameBroadcastEvent =
     | LeaveBroadcastEvent
     | DamageBroadcastEvent
     | GameStateEvent
-    | StartBroadcastEvent;
+    | StartBroadcastEvent
+    | IncorrectBroadcastEvent
+    | CorrectBroadcastEvent;
 export type GameEvent = ChatEvent | RoundEvent | TextEvent | PingEvent | RuleEvent | GameStateEvent | PongEvent | PlayEvent | SubmitEvent;
 
 export interface RoomCreationData {
