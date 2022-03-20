@@ -83,7 +83,7 @@ export interface TextEvent extends BaseEvent {
 export interface StartBroadcastEvent extends BaseEvent {
     type: "start";
     data: {
-        at: number;
+        in: number;
     };
 }
 

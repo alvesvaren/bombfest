@@ -179,10 +179,10 @@ export class Room {
         });
         this.currentPlayerIndex = 0;
         this.broadcastState();
-        this.broadcast("start", { at: Math.floor(new Date().getTime()) + 15000 });
+        this.broadcast("start", { in: 10000 });
         this.startTimer = setTimeout(() => {
             this.nextPrompt();
-        }, 15000);
+        }, 10000 );
     }
 
     async submitWord(from: GamePlayer, word: string) {
@@ -228,13 +228,14 @@ export class Room {
     }
 
     getCurrentPlayer() {
-        const realPlayingPlayers = this.playingPlayers.filter(player => player.alive);
-        return realPlayingPlayers[this.currentPlayerIndex % realPlayingPlayers.length];
+        return this.playingPlayers[this.currentPlayerIndex % this.playingPlayers.length];
     }
 
     nextPrompt() {
         this.prompt = getRandomPrompt(this.language, this.rules) || null;
-        this.currentPlayerIndex += 1;
+        do {
+            this.currentPlayerIndex += 1;
+        } while (!this.getCurrentPlayer() || this.getCurrentPlayer()?.alive === false);
         this.broadcastState();
         this.startBombTimer();
     }

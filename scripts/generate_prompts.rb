@@ -1,12 +1,13 @@
 #!/usr/bin/ruby
 # frozen_string_literal: true
 
-prompts = Hash.new(0)
 letter_regex = /^[a-zåäö]+$/
 
 Dir.glob('./wordlists/*/').each do |lang|
   lang = lang.split('/')[2]
   puts "Finding prompts for #{lang}"
+  prompts = Hash.new(0)
+
   File.readlines("./wordlists/#{lang}/roots.txt").each do |word|
     # @type [String]
     word = word.to_s.strip
