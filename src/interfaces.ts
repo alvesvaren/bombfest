@@ -2,12 +2,23 @@ export const dicts = ["sv_SE", "en_US"] as const;
 
 export type DictionaryName = typeof dicts[number];
 
+export const defaultRules: Rules = {
+    maxNewBombTimer: 30,
+    minNewBombTimer: 10,
+    minRoundTimer: 5,
+    minWordsPerPrompt: 500,
+    maxWordsPerPrompt: undefined,
+    startingLives: 2,
+    maxLives: 3,
+};
+
 export interface PlayerData {
     uuid: string;
     name: string;
     text: string;
     connected: boolean;
     alive: boolean;
+    lives: number;
 }
 
 export type uuid = string;
@@ -85,20 +96,26 @@ export interface PingEvent extends BaseEvent {
     type: "ping";
 }
 
+export interface SubmitEvent extends BaseEvent {
+    type: "submit";
+}
+
 export interface PongEvent extends BaseEvent {
     type: "pong";
 }
 
+export interface BaseGameState {
+    prompt: string | null;
+    players: PlayerData[];
+    playingPlayers: uuid[];
+    currentPlayerIndex: number;
+    rules: Rules;
+    language: DictionaryName;
+}
+
 export interface GameStateEvent extends BaseEvent {
     type: "state";
-    data: {
-        prompt: string | null;
-        players: PlayerData[];
-        playingPlayers: uuid[];
-        currentPlayerIndex: number;
-        rules: Rules;
-        language: DictionaryName;
-    };
+    data: BaseGameState;
 }
 
 export interface DamageBroadcastEvent extends BaseEvent {
@@ -112,20 +129,6 @@ export interface DamageBroadcastEvent extends BaseEvent {
 export interface PlayEvent extends BaseEvent {
     type: "play";
     data: {};
-}
-
-export interface ConnectBroadcastEvent extends BaseEvent {
-    type: "connect";
-    data: {
-        player: string;
-    };
-}
-
-export interface DisconnectBroadcastEvent extends BaseEvent {
-    type: "disconnect";
-    data: {
-        player: string;
-    };
 }
 
 export interface TextBroadcastEvent extends BaseEvent {
@@ -143,10 +146,8 @@ export type GameBroadcastEvent =
     | LeaveBroadcastEvent
     | DamageBroadcastEvent
     | GameStateEvent
-    | StartBroadcastEvent
-    | DisconnectBroadcastEvent
-    | ConnectBroadcastEvent;
-export type GameEvent = ChatEvent | RoundEvent | TextEvent | PingEvent | RuleEvent | GameStateEvent | PongEvent | PlayEvent;
+    | StartBroadcastEvent;
+export type GameEvent = ChatEvent | RoundEvent | TextEvent | PingEvent | RuleEvent | GameStateEvent | PongEvent | PlayEvent | SubmitEvent;
 
 export interface RoomCreationData {
     name: string;

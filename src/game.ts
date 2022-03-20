@@ -1,7 +1,7 @@
 import { jwtSecret } from "./secrets.json";
 import jwt from "jsonwebtoken";
 import WebSocket from "ws";
-import { BaseEvent, DictionaryName, GameBroadcastEvent, GameEvent, GameStateEvent, nonce, PlayerData, Rules, uuid } from "./interfaces";
+import { BaseEvent, defaultRules, DictionaryName, GameBroadcastEvent, GameEvent, GameStateEvent, nonce, PlayerData, Rules, uuid } from "./interfaces";
 import { randomUUID } from "crypto";
 import { checkValid, getRandomPrompt } from "./wordmanager";
 
@@ -50,12 +50,13 @@ export class GamePlayer extends Player {
 
     initiatePlayer() {
         this.connected = true;
-        this.lives = this.room.rules.startingLives;
         this.socket.on("message", this.handleSocketMessage.bind(this));
         console.log(`Player ${this.name} connected`);
+        this.room.broadcastState();
         this.socket.on("close", () => {
             this.connected = false;
             console.log(`Player ${this.name} disconnected`);
+            this.room.broadcastState();
         });
         this.send("state", this.room.objectify());
     }
@@ -73,6 +74,7 @@ export class GamePlayer extends Player {
             text: this.text,
             connected: this.connected,
             alive: this.alive,
+            lives: this.lives,
         };
     }
 
@@ -88,6 +90,7 @@ export class GamePlayer extends Player {
                     break;
                 case "text":
                     this.text = data.data.text;
+                    this.room.broadcast("text", { text: data.data.text, from: this.uuid });
                     break;
                 case "ping":
                     this.send("pong", undefined, data.nonce);
@@ -113,15 +116,7 @@ export class Room {
     prompt: string | null = null;
     roundTimer?: NodeJS.Timeout;
     startTimer?: NodeJS.Timeout;
-    rules: Rules = {
-        maxNewBombTimer: 30,
-        minNewBombTimer: 10,
-        minRoundTimer: 5,
-        minWordsPerPrompt: 500,
-        maxWordsPerPrompt: undefined,
-        startingLives: 2,
-        maxLives: 3,
-    };
+    rules: Rules = defaultRules;
 
     constructor(name: string, isPrivate: boolean = false) {
         this.uuid = randomUUID();
@@ -135,7 +130,10 @@ export class Room {
     }
 
     addPlayingPlayer(player: GamePlayer) {
-        this.playingPlayers.push(player);
+        if (this.playingPlayers.find(p => p.uuid === player.uuid)) {
+            return;
+        }
+        this.playingPlayers.unshift(player);
         this.broadcastState();
 
         if (this.playingPlayers.length >= 2) {
@@ -170,7 +168,7 @@ export class Room {
     }
 
     sendChat(from: GamePlayer, text: string) {
-        this.broadcast("chat", { from: from.uuid, text, at: Math.floor(new Date().getTime() / 1000) });
+        this.broadcast("chat", { from: from.uuid, text, at: Math.floor(new Date().getTime()) });
     }
 
     startGame() {
@@ -182,27 +180,37 @@ export class Room {
         });
         this.currentPlayerIndex = 0;
         this.broadcastState();
-        this.broadcast("start", { at: Math.floor(new Date().getTime() / 1000) + 15 });
+        this.broadcast("start", { at: Math.floor(new Date().getTime()) + 15000 });
         this.startTimer = setTimeout(() => {
             this.nextPrompt();
         }, 15000);
-        this.nextPrompt();
     }
 
     startRoundTimer() {
-        length = Math.ceil(Math.random() * (this.rules.maxNewBombTimer - this.rules.minNewBombTimer)) + this.rules.minNewBombTimer;
+        let length = Math.ceil(Math.random() * (this.rules.maxNewBombTimer - this.rules.minNewBombTimer)) + this.rules.minNewBombTimer;
         if (length < this.rules.minRoundTimer) {
             length = this.rules.minRoundTimer;
         }
+        console.log(length);
+        if (this.roundTimer) {
+            clearTimeout(this.roundTimer);
+        }
         this.roundTimer = setTimeout(() => {
-            this.getCurrentPlayer().lives -= 1;
-            this.broadcast("damage", { player: this.getCurrentPlayer().uuid, lives: this.getCurrentPlayer().lives });
+            const currentPlayer = this.getCurrentPlayer();
+            if (currentPlayer) {
+                currentPlayer.lives -= 1;
+                if (currentPlayer.lives <= 0) {
+                    currentPlayer.alive = false;
+                }
+                this.broadcast("damage", { player: currentPlayer.uuid, lives: currentPlayer.lives });
+            }
             this.nextPrompt();
-        }, length);
+        }, length * 1000);
     }
 
     getCurrentPlayer() {
-        return this.playingPlayers[this.currentPlayerIndex % this.playingPlayers.length] as GamePlayer;
+        const realPlayingPlayers = this.playingPlayers.filter(player => player.alive);
+        return realPlayingPlayers[this.currentPlayerIndex % realPlayingPlayers.length];
     }
 
     nextPrompt() {
