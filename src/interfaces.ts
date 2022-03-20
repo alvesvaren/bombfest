@@ -8,8 +8,8 @@ export const defaultRules: Rules = {
     minRoundTimer: 5,
     minWordsPerPrompt: 500,
     maxWordsPerPrompt: undefined,
-    startingLives: 2,
-    maxLives: 3,
+    startingLives: 3,
+    maxLives: 4,
 };
 
 export interface PlayerData {

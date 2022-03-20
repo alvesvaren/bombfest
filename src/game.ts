@@ -189,6 +189,7 @@ export class Room {
         word = word.toLowerCase();
         if (this.prompt && !word.includes(this.prompt)) {
             this.broadcast("incorrect", { for: from.uuid });
+            return;
         }
 
         const isCorrect = await checkValid(word, this.language);
@@ -203,6 +204,11 @@ export class Room {
     passBomb(from: GamePlayer) {
         this.broadcast("correct", { for: from.uuid });
         this.nextPrompt();
+    }
+
+    passPrompt() {
+        this.nextPlayer();
+        this.broadcastState();
     }
 
     startBombTimer() {
@@ -227,15 +233,19 @@ export class Room {
         }, length * 1000);
     }
 
+    nextPlayer() {
+        do {
+            this.currentPlayerIndex += 1;
+        } while (this.getCurrentPlayer() && this.getCurrentPlayer()?.alive === false);
+    }
+
     getCurrentPlayer() {
         return this.playingPlayers[this.currentPlayerIndex % this.playingPlayers.length];
     }
 
     nextPrompt() {
         this.prompt = getRandomPrompt(this.language, this.rules) || null;
-        do {
-            this.currentPlayerIndex += 1;
-        } while (this.getCurrentPlayer() && this.getCurrentPlayer()?.alive === false);
+        this.nextPlayer();
         this.broadcastState();
         this.startBombTimer();
     }
