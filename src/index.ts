@@ -10,9 +10,10 @@ import { GamePlayer, Player, Room, validateToken } from "./game";
 import jwt from "jsonwebtoken";
 import { RoomCreationData } from "./interfaces";
 import { randomUUID } from "crypto";
+import process from 'process';
 
 const config = {
-    port: 3001,
+    port: process.env.SERVER_PORT || 3001,
 };
 
 const app = new Koa();
