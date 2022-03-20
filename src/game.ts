@@ -235,7 +235,7 @@ export class Room {
         this.prompt = getRandomPrompt(this.language, this.rules) || null;
         do {
             this.currentPlayerIndex += 1;
-        } while (!this.getCurrentPlayer() || this.getCurrentPlayer()?.alive === false);
+        } while (this.getCurrentPlayer() && this.getCurrentPlayer()?.alive === false);
         this.broadcastState();
         this.startBombTimer();
     }
