@@ -188,7 +188,7 @@ export class Room {
     async submitWord(from: GamePlayer, word: string) {
         word = word.toLowerCase();
         if (this.prompt && !word.includes(this.prompt)) {
-            return;
+            this.broadcast("incorrect", { for: from.uuid });
         }
 
         const isCorrect = await checkValid(word, this.language);
