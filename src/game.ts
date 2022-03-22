@@ -182,7 +182,7 @@ export class Room {
         this.broadcast("start", { in: 10000 });
         this.startTimer = setTimeout(() => {
             this.nextPrompt();
-        }, 10000 );
+        }, 10000);
     }
 
     async submitWord(from: GamePlayer, word: string) {
@@ -193,7 +193,7 @@ export class Room {
         }
 
         const isCorrect = await checkValid(word, this.language);
-        
+
         if (isCorrect) {
             this.passBomb(from);
         } else {
@@ -234,13 +234,18 @@ export class Room {
     }
 
     nextPlayer() {
+        const playingPlayers = this.playingPlayers.filter(player => player.alive);
         do {
             this.currentPlayerIndex += 1;
-        } while (this.getCurrentPlayer() && this.getCurrentPlayer()?.alive === false);
+        } while (this.getCurrentPlayer() && this.getCurrentPlayer()?.alive === false && playingPlayers.length >= 1);
     }
 
     getCurrentPlayer() {
-        return this.playingPlayers[this.currentPlayerIndex % this.playingPlayers.length];
+        const currentPlayer = this.playingPlayers[this.currentPlayerIndex % this.playingPlayers.length];
+        if (!currentPlayer?.alive) {
+            return null;
+        }
+        return currentPlayer || null;
     }
 
     nextPrompt() {
