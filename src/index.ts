@@ -10,7 +10,7 @@ import { GamePlayer, Player, Room, validateToken } from "./game";
 import jwt from "jsonwebtoken";
 import { RoomCreationData } from "./interfaces";
 import { randomUUID } from "crypto";
-import process from 'process';
+import process from "process";
 
 const config = {
     port: process.env.SERVER_PORT || 3001,
@@ -54,6 +54,18 @@ router.post("/account", ctx => {
         uuid?: string;
     } = ctx.request.body;
 
+    if (!playerData.name) {
+        ctx.status = 400;
+        ctx.body = { error: "Invalid name" };
+        return;
+    }
+
+    if (playerData.name.length > 20) {
+        ctx.status = 400;
+        ctx.body = { error: "Name too long" };
+        return;
+    }
+
     const player = new Player(playerData.name, playerData.uuid || randomUUID());
 
     ctx.body = {
@@ -63,6 +75,12 @@ router.post("/account", ctx => {
 
 router.post("/rooms", ctx => {
     const data: RoomCreationData = ctx.request.body;
+
+    if (data.name.length > 20) {
+        ctx.status = 400;
+        ctx.body = { error: "Name too long" };
+        return;
+    }
 
     if (currentPlayer(ctx)) {
         const room = new Room(data.name, data.isPrivate);
