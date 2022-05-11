@@ -12,6 +12,12 @@ export const defaultRules: Rules = {
     maxLives: 4,
 };
 
+export interface TokenData {
+    sub: uuid;
+    name: string;
+    iat: number;
+}
+
 export interface PlayerData {
     uuid: string;
     name: string;
@@ -111,6 +117,7 @@ export interface BaseGameState {
     currentPlayerIndex: number;
     rules: Rules;
     language: DictionaryName;
+    bombExplodesIn: number | null;
 }
 
 export interface GameStateEvent extends BaseEvent {
