@@ -13,13 +13,13 @@ export const defaultRules: Rules = {
 };
 
 export interface TokenData {
-    sub: uuid;
+    sub: cuid;
     name: string;
     iat: number;
 }
 
 export interface PlayerData {
-    uuid: string;
+    cuid: string;
     name: string;
     text: string;
     connected: boolean;
@@ -27,7 +27,7 @@ export interface PlayerData {
     lives: number;
 }
 
-export type uuid = string;
+export type cuid = string;
 export type nonce = number | string;
 
 export interface Rules {
@@ -57,7 +57,7 @@ export interface ChatBroadcastEvent extends BaseEvent {
     type: "chat";
     data: {
         text: string;
-        from: uuid;
+        from: cuid;
         at: number;
     };
 }
@@ -69,7 +69,7 @@ export interface JoinBroadcastEvent extends BaseEvent {
 
 export interface LeaveBroadcastEvent extends BaseEvent {
     type: "leave";
-    data: Pick<PlayerData, "uuid">;
+    data: Pick<PlayerData, "cuid">;
 }
 
 export interface RoundEvent extends BaseEvent {
@@ -113,7 +113,7 @@ export interface PongEvent extends BaseEvent {
 export interface BaseGameState {
     prompt: string | null;
     players: PlayerData[];
-    playingPlayers: uuid[];
+    playingPlayers: cuid[];
     currentPlayerIndex: number;
     rules: Rules;
     language: DictionaryName;
@@ -129,7 +129,7 @@ export interface DamageBroadcastEvent extends BaseEvent {
     type: "damage";
     data: {
         lives: number;
-        player: uuid;
+        player: cuid;
     };
 }
 
@@ -142,21 +142,21 @@ export interface TextBroadcastEvent extends BaseEvent {
     type: "text";
     data: {
         text: string;
-        from: uuid;
+        from: cuid;
     };
 }
 
 export interface IncorrectBroadcastEvent extends BaseEvent {
     type: "incorrect";
     data: {
-        for: uuid;
+        for: cuid;
     };
 }
 
 export interface CorrectBroadcastEvent extends BaseEvent {
     type: "correct";
     data: {
-        for: uuid;
+        for: cuid;
     };
 }
 

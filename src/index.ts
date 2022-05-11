@@ -9,7 +9,7 @@ import WebSocket from "ws";
 import { GamePlayer, Player, Room, validateToken } from "./game";
 import jwt from "jsonwebtoken";
 import { RoomCreationData } from "./interfaces";
-import { randomUUID } from "crypto";
+import generateCuid from "cuid";
 import process from "process";
 
 const config = {
@@ -19,7 +19,7 @@ const config = {
 const app = new Koa();
 const router = new KoaRouter();
 
-const rooms: { [uuid: string]: Room } = {};
+const rooms: { [cuid: string]: Room } = {};
 
 const currentPlayer = (ctx: Koa.Context) => {
     const token = ctx.request.header.authorization?.split(" ")[1];
@@ -41,8 +41,8 @@ router.get("/", (ctx, next) => {
 });
 
 router.get("/rooms", ctx => {
-    ctx.body = Object.entries(rooms).map(([uuid, room]) => ({
-        uuid: room.uuid,
+    ctx.body = Object.entries(rooms).map(([cuid, room]) => ({
+        cuid: room.cuid,
         name: room.name,
         player_count: room.players.filter(p => p.connected).length,
     }));
@@ -51,7 +51,7 @@ router.get("/rooms", ctx => {
 router.post("/account", ctx => {
     const playerData: {
         name: string;
-        uuid?: string;
+        cuid?: string;
     } = ctx.request.body;
 
     if (!playerData.name) {
@@ -66,7 +66,7 @@ router.post("/account", ctx => {
         return;
     }
 
-    const player = new Player(playerData.name, playerData.uuid || randomUUID());
+    const player = new Player(playerData.name, playerData.cuid || generateCuid());
 
     ctx.body = {
         token: player.generateToken(),
@@ -84,9 +84,9 @@ router.post("/rooms", ctx => {
 
     if (currentPlayer(ctx)) {
         const room = new Room(data.name, data.isPrivate);
-        rooms[room.uuid] = room;
+        rooms[room.cuid] = room;
         ctx.body = {
-            uuid: room.uuid,
+            cuid: room.cuid,
         };
     } else {
         ctx.status = 401;
@@ -114,7 +114,7 @@ router.get("/room/:id/ws", async (ctx, next) => {
         }
         const data = jwt.decode(authorizationToken, { json: true });
         if (data && data.name && data.sub) {
-            const player = room.players.find(player => player.uuid === data.sub);
+            const player = room.players.find(player => player.cuid === data.sub);
             if (player) {
                 player.socket.close(1008, "Connected from other location");
                 player.socket = ws;

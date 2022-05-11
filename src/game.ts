@@ -1,8 +1,8 @@
 import { jwtSecret } from "./secrets.json";
 import jwt from "jsonwebtoken";
 import WebSocket from "ws";
-import { BaseEvent, defaultRules, DictionaryName, GameBroadcastEvent, GameEvent, GameStateEvent, nonce, PlayerData, Rules, uuid } from "./interfaces";
-import { randomUUID } from "crypto";
+import { BaseEvent, defaultRules, DictionaryName, GameBroadcastEvent, GameEvent, GameStateEvent, nonce, PlayerData, Rules, cuid } from "./interfaces";
+import generateCuid from "cuid";
 import { checkValid, getRandomPrompt } from "./wordmanager";
 
 export const validateToken = (token: string) => {
@@ -10,15 +10,15 @@ export const validateToken = (token: string) => {
 };
 
 export class Player {
-    uuid: string;
+    cuid: string;
     name: string;
-    constructor(name: string, uuid: uuid) {
-        this.uuid = uuid;
+    constructor(name: string, cuid: cuid) {
+        this.cuid = cuid;
         this.name = name;
     }
 
     generateToken() {
-        return jwt.sign({ sub: this.uuid, name: this.name, iat: Math.floor(new Date().getTime() / 1000) }, jwtSecret);
+        return jwt.sign({ sub: this.cuid, name: this.name, iat: Math.floor(new Date().getTime() / 1000) }, jwtSecret);
     }
 
     static fromToken(token: string) {
@@ -38,8 +38,8 @@ export class GamePlayer extends Player {
     admin: boolean;
     lives: number = 0;
 
-    constructor(name: string, room: Room, socket: WebSocket, uuid: string, admin: boolean) {
-        super(name, uuid);
+    constructor(name: string, room: Room, socket: WebSocket, cuid: string, admin: boolean) {
+        super(name, cuid);
         this.room = room;
         this.socket = socket;
         this.admin = admin;
@@ -72,7 +72,7 @@ export class GamePlayer extends Player {
 
     objectify(): PlayerData {
         return {
-            uuid: this.uuid,
+            cuid: this.cuid,
             name: this.name,
             text: this.text,
             connected: this.connected,
@@ -86,12 +86,12 @@ export class GamePlayer extends Player {
             const data: GameEvent = JSON.parse(message);
             switch (data.type) {
                 case "chat":
-                    this.room.broadcast("chat", { text: data.data.text, from: this.uuid });
+                    this.room.broadcast("chat", { text: data.data.text, from: this.cuid });
                     break;
                 case "text":
                     this.text = data.data.text;
                     if (this.room.getCurrentPlayer() === this) {
-                        this.room.broadcast("text", { text: data.data.text, from: this.uuid });
+                        this.room.broadcast("text", { text: data.data.text, from: this.cuid });
                     }
                     break;
                 case "ping":
@@ -112,7 +112,7 @@ export class GamePlayer extends Player {
 }
 
 export class Room {
-    uuid: string;
+    cuid: string;
     name: string;
     players: GamePlayer[] = [];
     playingPlayers: GamePlayer[] = [];
@@ -127,7 +127,7 @@ export class Room {
     rules: Rules = defaultRules;
 
     constructor(name: string, isPrivate: boolean = false) {
-        this.uuid = randomUUID();
+        this.cuid = generateCuid();
         this.isPrivate = isPrivate;
         this.name = name;
     }
@@ -138,11 +138,11 @@ export class Room {
 
     addPlayer(player: GamePlayer) {
         this.players.push(player);
-        this.broadcast("join", { uuid: player.uuid, name: player.name });
+        this.broadcast("join", { cuid: player.cuid, name: player.name });
     }
 
     addPlayingPlayer(player: GamePlayer) {
-        if (this.playingPlayers.find(p => p.uuid === player.uuid)) {
+        if (this.playingPlayers.find(p => p.cuid === player.cuid)) {
             return;
         }
         this.playingPlayers.unshift(player);
@@ -155,7 +155,7 @@ export class Room {
 
     removePlayer(player: GamePlayer) {
         this.players = this.players.filter(p => p !== player);
-        this.broadcast("leave", { uuid: player.uuid });
+        this.broadcast("leave", { cuid: player.cuid });
     }
 
     broadcast(type: GameBroadcastEvent["type"], data: GameBroadcastEvent["data"]) {
@@ -171,7 +171,7 @@ export class Room {
     objectify(): GameStateEvent["data"] {
         return {
             players: this.players.map(player => player.objectify()),
-            playingPlayers: this.playingPlayers.map(player => player.uuid),
+            playingPlayers: this.playingPlayers.map(player => player.cuid),
             currentPlayerIndex: this.currentPlayerIndex,
             language: this.language,
             prompt: this.prompt,
@@ -181,7 +181,7 @@ export class Room {
     }
 
     sendChat(from: GamePlayer, text: string) {
-        this.broadcast("chat", { from: from.uuid, text, at: Math.floor(new Date().getTime()) });
+        this.broadcast("chat", { from: from.cuid, text, at: Math.floor(new Date().getTime()) });
     }
 
     startGame() {
@@ -203,7 +203,7 @@ export class Room {
     async submitWord(from: GamePlayer, word: string) {
         word = word.toLowerCase();
         if (this.prompt && !word.includes(this.prompt)) {
-            this.broadcast("incorrect", { for: from.uuid });
+            this.broadcast("incorrect", { for: from.cuid });
             return;
         }
 
@@ -212,12 +212,12 @@ export class Room {
         if (isCorrect) {
             this.passBomb(from);
         } else {
-            this.broadcast("incorrect", { for: from.uuid });
+            this.broadcast("incorrect", { for: from.cuid });
         }
     }
 
     passBomb(from: GamePlayer) {
-        this.broadcast("correct", { for: from.uuid });
+        this.broadcast("correct", { for: from.cuid });
         this.nextPrompt();
     }
 
@@ -245,7 +245,7 @@ export class Room {
             const currentPlayer = this.getCurrentPlayer();
             if (currentPlayer) {
                 currentPlayer.lives -= 1;
-                this.broadcast("damage", { player: currentPlayer.uuid, lives: currentPlayer.lives });
+                this.broadcast("damage", { player: currentPlayer.cuid, lives: currentPlayer.lives });
             }
             this.passPrompt();
         }, time);
