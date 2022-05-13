@@ -125,6 +125,13 @@ export interface GameStateEvent extends BaseEvent {
     data: BaseGameState;
 }
 
+export interface ErrorEvent extends BaseEvent {
+    type: "error";
+    data: {
+        msg?: string;
+    };
+}
+
 export interface DamageBroadcastEvent extends BaseEvent {
     type: "damage";
     data: {
@@ -170,7 +177,7 @@ export type GameBroadcastEvent =
     | StartBroadcastEvent
     | IncorrectBroadcastEvent
     | CorrectBroadcastEvent;
-export type GameEvent = ChatEvent | RoundEvent | TextEvent | PingEvent | RuleEvent | GameStateEvent | PongEvent | PlayEvent | SubmitEvent;
+export type GameEvent = ChatEvent | RoundEvent | TextEvent | PingEvent | RuleEvent | GameStateEvent | PongEvent | PlayEvent | SubmitEvent | ErrorEvent;
 
 export interface RoomCreationData {
     name: string;

@@ -82,6 +82,10 @@ export class GamePlayer extends Player {
     }
 
     handleSocketMessage(message: string) {
+        if (!this.connected) {
+            this.send("error", {msg: "You are not connected"});
+            return;
+        }
         try {
             const data: GameEvent = JSON.parse(message);
             switch (data.type) {
@@ -90,7 +94,7 @@ export class GamePlayer extends Player {
                     break;
                 case "text":
                     this.text = data.data.text;
-                    if (this.room.getCurrentPlayer() === this) {
+                    if (this.room.getCurrentPlayer() === this && this.alive) {
                         this.room.broadcast("text", { text: data.data.text, from: this.cuid });
                     }
                     break;
