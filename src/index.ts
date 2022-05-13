@@ -8,7 +8,7 @@ import koaWs from "koa-easy-ws";
 import WebSocket from "ws";
 import { GamePlayer, Player, Room, validateToken } from "./game";
 import jwt from "jsonwebtoken";
-import { RoomCreationData } from "./interfaces";
+import { RoomCreationData, RoomData } from "./interfaces";
 import generateCuid from "cuid";
 import process from "process";
 
@@ -41,10 +41,11 @@ router.get("/", (ctx, next) => {
 });
 
 router.get("/rooms", ctx => {
-    ctx.body = Object.entries(rooms).map(([cuid, room]) => ({
+    (ctx.body as RoomData[]) = Object.entries(rooms).map(([cuid, room]) => ({
         cuid: room.cuid,
         name: room.name,
         player_count: room.players.filter(p => p.connected).length,
+        language: room.language,
     }));
 });
 
@@ -79,6 +80,12 @@ router.post("/rooms", ctx => {
     if (data.name.length > 20) {
         ctx.status = 400;
         ctx.body = { error: "Name too long" };
+        return;
+    }
+
+    if (!data.name.length) {
+        ctx.status = 400;
+        ctx.body = { error: "Name required" };
         return;
     }
 

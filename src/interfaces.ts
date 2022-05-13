@@ -183,3 +183,10 @@ export interface RoomCreationData {
     name: string;
     isPrivate: boolean;
 }
+
+export interface RoomData {
+    cuid: string;
+    player_count: number;
+    name: string;
+    language: DictionaryName;
+}
