@@ -138,7 +138,7 @@ export class Room {
     bombExplodesAt?: number;
     rules: Rules = defaultRules;
     currentPlayer: GamePlayer | null = null;
-    startWaitTime = 1000;
+    startWaitTime = 10000;
     submitAttempt: (word: string) => void = () => {};
 
     constructor(name: string, isPrivate: boolean = false) {
@@ -207,7 +207,7 @@ export class Room {
     }
 
     renewBombTimer() {
-        if ((this.bombExplodesIn || 0) < this.rules.minRoundTimer) {
+        if ((this.bombExplodesIn || 0) < this.rules.minRoundTimer * 1000) {
             this.bombExplodesAt = new Date().getTime() + this.rules.minRoundTimer * 1000;
         }
     }
