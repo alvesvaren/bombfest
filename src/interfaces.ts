@@ -53,13 +53,15 @@ export interface ChatEvent extends BaseEvent {
     };
 }
 
+export interface ChatMessage {
+    text: string;
+    from: cuid;
+    at: number;
+}
+
 export interface ChatBroadcastEvent extends BaseEvent {
     type: "chat";
-    data: {
-        text: string;
-        from: cuid;
-        at: number;
-    };
+    data: ChatMessage;
 }
 
 export interface JoinBroadcastEvent extends BaseEvent {

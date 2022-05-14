@@ -90,7 +90,7 @@ export class GamePlayer extends Player {
             const data: GameEvent = JSON.parse(message);
             switch (data.type) {
                 case "chat":
-                    this.room.broadcast("chat", { text: data.data.text, from: this.cuid });
+                    this.room.sendChat(this, data.data.text);
                     break;
                 case "text":
                     this.text = data.data.text;
@@ -189,7 +189,7 @@ export class Room {
     }
 
     sendChat(from: GamePlayer, text: string) {
-        this.broadcast("chat", { from: from.cuid, text, at: Math.floor(new Date().getTime()) });
+        this.broadcast("chat", { from: from.cuid, text, at: new Date().getTime() });
     }
 
     startGame() {
