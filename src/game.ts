@@ -9,7 +9,7 @@ export const validateToken = (token: string) => {
     return jwt.verify(token, jwtSecret);
 };
 
-export const sleep = async (duration: number) => await new Promise(resolve => setTimeout(resolve, duration));
+export const sleep = async (duration: number) => await new Promise<void>(resolve => setTimeout(resolve, duration));
 
 export class Player {
     cuid: string;
@@ -158,9 +158,7 @@ export class Room {
     }
 
     async waitForPlayersToJoin() {
-        while (this.playingPlayers.length < 2) {
-            await sleep(100);
-        }
+        while (this.playingPlayers.length < 2) await sleep(100);
         this.broadcast("start", { in: this.startWaitTime });
         await sleep(this.startWaitTime);
     }
@@ -213,6 +211,7 @@ export class Room {
     }
 
     async gameLoop() {
+        this.broadcastState();
         await this.waitForPlayersToJoin();
         this.startGame();
         const players = this.genPlayers();
@@ -220,15 +219,13 @@ export class Room {
         this.newBombTimer();
 
         while (this.alivePlayingPlayers.length > 1) {
-            // Handle one player's turn
+            // Handle one player's turn, elal is pog1
             const generatedPlayer = players.next();
             if (generatedPlayer.done || !generatedPlayer.value) {
                 break;
             }
             this.currentPlayer = generatedPlayer.value;
-            console.log(this.objectify().currentPlayer);
             this.broadcastState();
-            console.log(this.objectify().currentPlayer);
 
             if (await this.waitForPlayerToSubmitCorrect(this.currentPlayer, this.bombExplodesIn || this.rules.minRoundTimer * 1000)) {
                 this.broadcast("correct", { for: this.currentPlayer.cuid });
@@ -258,12 +255,8 @@ export class Room {
         if (this.playingPlayers.find(p => p.cuid === player.cuid)) {
             return;
         }
-        this.playingPlayers.unshift(player);
+        this.playingPlayers.push(player);
         this.broadcastState();
-
-        if (this.playingPlayers.length >= 2) {
-            this.startGame();
-        }
     }
 
     removePlayer(player: GamePlayer) {
@@ -299,7 +292,6 @@ export class Room {
     }
 
     startGame() {
-        // this.playingPlayers = this.players.filter(player => player.connected);
         this.isPlaying = true;
         this.playingPlayers.forEach(player => {
             player.lives = this.rules.startingLives;
@@ -310,21 +302,6 @@ export class Room {
         this.newPrompt();
     }
 
-    // async submitWord(from: GamePlayer, word: string) {
-    //     if (this.prompt && !word.includes(this.prompt)) {
-    //         this.broadcast("incorrect", { for: from.cuid });
-    //         return;
-    //     }
-
-    //     const isCorrect = await checkValid(word, this.language);
-
-    //     if (isCorrect) {
-    //         this.passBomb(from);
-    //     } else {
-    //         this.broadcast("incorrect", { for: from.cuid });
-    //     }
-    // }
-
     async endGame() {
         this.broadcast("end", { winner: this.alivePlayingPlayers[0]?.cuid, newRoundIn: 2000 });
         await sleep(2000);
@@ -334,45 +311,7 @@ export class Room {
         this.broadcastState();
     }
 
-    // resetBombTimer() {
-    //     let length = Math.ceil(Math.random() * (this.rules.maxNewBombTimer - this.rules.minNewBombTimer)) + this.rules.minNewBombTimer;
-    //     // if (length < this.rules.minRoundTimer) {
-    //     //     length = this.rules.minRoundTimer;
-    //     // }
-    //     console.log(length);
-    //     this.setBombTimer(length * 1000);
-    // }
-
-    // setBombTimer(time: number) {
-    //     if (this.roundTimer) {
-    //         clearTimeout(this.roundTimer);
-    //     }
-
-    //     this.roundTimer = setTimeout(() => {
-    //         const currentPlayer = this.currentPlayer;
-    //         if (currentPlayer) {
-    //             currentPlayer.lives -= 1;
-    //             this.broadcast("damage", { player: currentPlayer.cuid, lives: currentPlayer.lives });
-    //         }
-    //         this.passPrompt();
-    //     }, time);
-    //     this.bombExplodesAt = Math.floor(new Date().getTime()) + time * 1000;
-    // }
-
     get alivePlayingPlayers() {
         return this.playingPlayers.filter(player => player.alive);
     }
-
-    // get currentPlayer() {
-    //     const currentPlayer = this.alivePlayingPlayers[this.currentPlayerIndex % this.playingPlayers.length];
-    //     return currentPlayer || null;
-    // }
-
-    // nextPrompt() {
-    //     if (this.bombExplodesAt && this.bombExplodesAt > new Date().getTime() + this.rules.minRoundTimer * 1000) {
-    //         this.setBombTimer(this.rules.minNewBombTimer * 1000);
-    //     }
-    //     this.prompt = getRandomPrompt(this.language, this.rules) || null;
-    //     this.nextPlayer();
-    // }
 }
