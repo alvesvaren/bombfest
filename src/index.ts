@@ -96,7 +96,7 @@ router.post("/rooms", ctx => {
             cuid: room.cuid,
             name: room.name,
             language: room.language,
-            player_count: room.player_count,
+            player_count: room.playerCount,
         }
     } else {
         ctx.status = 401;

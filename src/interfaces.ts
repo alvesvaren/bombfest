@@ -95,6 +95,14 @@ export interface StartBroadcastEvent extends BaseEvent {
     };
 }
 
+export interface EndBroadcastEvent extends BaseEvent {
+    type: "end";
+    data: {
+        winner?: cuid;
+        newRoundIn: number;
+    };
+}
+
 export interface RuleEvent extends BaseEvent {
     type: "rules";
     data: Rules;
@@ -106,6 +114,9 @@ export interface PingEvent extends BaseEvent {
 
 export interface SubmitEvent extends BaseEvent {
     type: "submit";
+    data: {
+        text: string;
+    }
 }
 
 export interface PongEvent extends BaseEvent {
@@ -116,10 +127,11 @@ export interface BaseGameState {
     prompt: string | null;
     players: PlayerData[];
     playingPlayers: cuid[];
-    currentPlayerIndex: number;
+    currentPlayer: cuid | null;
     rules: Rules;
     language: DictionaryName;
     bombExplodesIn: number | null;
+    isPlaying: boolean;
 }
 
 export interface GameStateEvent extends BaseEvent {
@@ -178,7 +190,8 @@ export type GameBroadcastEvent =
     | GameStateEvent
     | StartBroadcastEvent
     | IncorrectBroadcastEvent
-    | CorrectBroadcastEvent;
+    | CorrectBroadcastEvent
+    | EndBroadcastEvent;
 export type GameEvent = ChatEvent | RoundEvent | TextEvent | PingEvent | RuleEvent | GameStateEvent | PongEvent | PlayEvent | SubmitEvent | ErrorEvent;
 
 export interface RoomCreationData {
