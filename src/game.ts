@@ -140,6 +140,10 @@ export class Room {
         return this.bombExplodesAt ? this.bombExplodesAt - new Date().getTime() : null;
     }
 
+    get player_count() {
+        return this.players.filter(p => p.connected).length;
+    }
+
     addPlayer(player: GamePlayer) {
         this.players.push(player);
         this.broadcast("join", { cuid: player.cuid, name: player.name });

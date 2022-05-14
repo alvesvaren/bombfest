@@ -92,9 +92,12 @@ router.post("/rooms", ctx => {
     if (currentPlayer(ctx)) {
         const room = new Room(data.name, data.isPrivate);
         rooms[room.cuid] = room;
-        ctx.body = {
+        (ctx.body as RoomData) = {
             cuid: room.cuid,
-        };
+            name: room.name,
+            language: room.language,
+            player_count: room.player_count,
+        }
     } else {
         ctx.status = 401;
         ctx.body = { error: "Invalid authorization token" };
