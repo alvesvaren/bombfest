@@ -116,7 +116,7 @@ export interface SubmitEvent extends BaseEvent {
     type: "submit";
     data: {
         text: string;
-    }
+    };
 }
 
 export interface PongEvent extends BaseEvent {
@@ -191,7 +191,8 @@ export type GameBroadcastEvent =
     | StartBroadcastEvent
     | IncorrectBroadcastEvent
     | CorrectBroadcastEvent
-    | EndBroadcastEvent;
+    | EndBroadcastEvent
+    | ErrorEvent;
 export type GameEvent = ChatEvent | RoundEvent | TextEvent | PingEvent | RuleEvent | GameStateEvent | PongEvent | PlayEvent | SubmitEvent | ErrorEvent;
 
 export interface RoomCreationData {

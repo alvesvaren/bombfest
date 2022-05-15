@@ -97,11 +97,19 @@ export class GamePlayer extends Player {
             const data: GameEvent = JSON.parse(message);
             switch (data.type) {
                 case "chat":
+                    if (data.data.text.length > 256) {
+                        this.send("error", { message: "Your message is too long" });
+                        return;
+                    }
                     this.room.sendChat(this, data.data.text);
                     break;
                 case "text":
-                    this.text = data.data.text.toLowerCase();
                     if (this.isMyTurn) {
+                        this.text = data.data.text.toLowerCase();
+                        if (this.text.length > 256) {
+                            this.send("error", { message: "Your word is too long" });
+                            return;
+                        }
                         this.room.broadcast("text", { text: this.text, from: this.cuid });
                     }
                     break;
@@ -111,10 +119,18 @@ export class GamePlayer extends Player {
                 case "play":
                     if (!this.room.isPlaying) {
                         this.room.addPlayingPlayer(this);
+                    } else {
+                        this.send("error", { message: "Game is already in progress" });
                     }
                     break;
                 case "submit":
                     if (this.isMyTurn) {
+                        this.text = data.data.text.toLowerCase();
+                        if (this.text.length > 256) {
+                            this.send("error", { message: "Your word is too long" });
+                            return;
+                        }
+                        this.room.broadcast("text", { text: this.text, from: this.cuid });
                         this.room.submitAttempt(data.data.text.toLowerCase());
                     }
             }
