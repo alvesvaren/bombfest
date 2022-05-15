@@ -17,7 +17,7 @@ const config = {
 };
 
 const app = new Koa();
-const router = new KoaRouter();
+const router = new KoaRouter({prefix: "/api"});
 
 const rooms: { [cuid: string]: Room } = {};
 

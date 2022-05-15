@@ -235,7 +235,7 @@ export class Room {
         this.newBombTimer();
 
         while (this.alivePlayingPlayers.length > 1) {
-            // Handle one player's turn, elal is pog1
+            // Handle one player's turn
             const generatedPlayer = players.next();
             if (generatedPlayer.done || !generatedPlayer.value) {
                 break;
@@ -271,6 +271,8 @@ export class Room {
         if (this.playingPlayers.find(p => p.cuid === player.cuid)) {
             return;
         }
+        player.lives = this.rules.startingLives;
+        player.text = "";
         this.playingPlayers.push(player);
         this.broadcastState();
     }
@@ -309,10 +311,6 @@ export class Room {
 
     startGame() {
         this.isPlaying = true;
-        this.playingPlayers.forEach(player => {
-            player.lives = this.rules.startingLives;
-            player.text = "";
-        });
         this.currentPlayer = null;
         this.broadcastState();
         this.newPrompt();
