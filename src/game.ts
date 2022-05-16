@@ -67,13 +67,12 @@ export class GamePlayer extends Player {
             console.log(`Player ${this.name} disconnected`);
             this.room.broadcastState();
         });
+        this.socket.on("error", console.error);
         this.send("state", this.room.objectify());
     }
 
     send<T extends GameEvent | GameBroadcastEvent>(type: T["type"], data: T["data"], nonce?: nonce) {
-        if (this.socket) {
-            this.socket.send(JSON.stringify({ type, data, nonce }));
-        }
+        this.socket?.send(JSON.stringify({ type, data, nonce }));
     }
 
     objectify(): PlayerData {
