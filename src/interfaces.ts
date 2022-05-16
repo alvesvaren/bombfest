@@ -142,7 +142,7 @@ export interface GameStateEvent extends BaseEvent {
 export interface ErrorEvent extends BaseEvent {
     type: "error";
     data: {
-        msg?: string;
+        message?: string;
     };
 }
 

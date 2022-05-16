@@ -88,7 +88,7 @@ export class GamePlayer extends Player {
 
     handleSocketMessage(message: string) {
         if (!this.connected) {
-            this.send("error", { msg: "You are not connected" });
+            this.send("error", { message: "You are not connected" });
             return;
         }
 

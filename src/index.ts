@@ -17,7 +17,7 @@ const config = {
 };
 
 const app = new Koa();
-const router = new KoaRouter({prefix: "/api"});
+const router = new KoaRouter({ prefix: "/api" });
 
 const rooms: { [cuid: string]: Room } = {};
 
@@ -97,7 +97,7 @@ router.post("/rooms", ctx => {
             name: room.name,
             language: room.language,
             player_count: room.playerCount,
-        }
+        };
     } else {
         ctx.status = 401;
         ctx.body = { error: "Invalid authorization token" };
