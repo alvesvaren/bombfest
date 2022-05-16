@@ -173,7 +173,10 @@ export class Room {
     }
 
     async waitForPlayersToJoin() {
-        while (this.playingPlayers.length < 2) await sleep(100);
+        while (this.playingPlayers.length < 2) {
+            this.playingPlayers = this.playingPlayers.filter(p => p.connected);
+            await sleep(100);
+        }
         this.broadcast("start", { in: this.startWaitTime });
         await sleep(this.startWaitTime);
     }
@@ -252,7 +255,7 @@ export class Room {
                 this.broadcastState();
             }
         }
-        this.endGame();
+        await this.endGame();
     }
 
     async startGameLoop() {
