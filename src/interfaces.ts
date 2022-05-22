@@ -150,7 +150,7 @@ export interface DamageBroadcastEvent extends BaseEvent {
     type: "damage";
     data: {
         lives: number;
-        player: cuid;
+        for: cuid;
     };
 }
 

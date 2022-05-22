@@ -1,7 +1,27 @@
 import { jwtSecret } from "./secrets.json";
 import jwt from "jsonwebtoken";
 import WebSocket from "ws";
-import { BaseEvent, defaultRules, DictionaryName, GameBroadcastEvent, GameEvent, GameStateEvent, nonce, PlayerData, Rules, cuid } from "./interfaces";
+import {
+    BaseEvent,
+    defaultRules,
+    DictionaryName,
+    GameBroadcastEvent,
+    GameEvent,
+    GameStateEvent,
+    nonce,
+    PlayerData,
+    Rules,
+    cuid,
+    DamageBroadcastEvent,
+    CorrectBroadcastEvent,
+    IncorrectBroadcastEvent,
+    JoinBroadcastEvent,
+    LeaveBroadcastEvent,
+    ChatBroadcastEvent,
+    EndBroadcastEvent,
+    TextBroadcastEvent,
+    StartBroadcastEvent,
+} from "./interfaces";
 import generateCuid from "cuid";
 import { checkValid, getRandomPrompt } from "./wordmanager";
 
@@ -109,7 +129,7 @@ export class GamePlayer extends Player {
                             this.send("error", { message: "Your word is too long" });
                             return;
                         }
-                        this.room.broadcast("text", { text: this.text, from: this.cuid });
+                        this.room.broadcast<TextBroadcastEvent>("text", { text: this.text, from: this.cuid });
                     }
                     break;
                 case "ping":
@@ -129,7 +149,7 @@ export class GamePlayer extends Player {
                             this.send("error", { message: "Your word is too long" });
                             return;
                         }
-                        this.room.broadcast("text", { text: this.text, from: this.cuid });
+                        this.room.broadcast<TextBroadcastEvent>("text", { text: this.text, from: this.cuid });
                         this.room.submitAttempt(data.data.text.toLowerCase());
                     }
             }
@@ -177,7 +197,7 @@ export class Room {
             this.playingPlayers = this.playingPlayers.filter(p => p.connected);
             await sleep(100);
         }
-        this.broadcast("start", { in: this.startWaitTime });
+        this.broadcast<StartBroadcastEvent>("start", { in: this.startWaitTime });
         await sleep(this.startWaitTime);
     }
 
@@ -187,17 +207,17 @@ export class Room {
                 if (this.prompt && word.includes(this.prompt)) {
                     checkValid(word, this.language).then(isValid => {
                         if (isValid) {
-                            this.broadcast("correct", { for: player.cuid });
+                            this.broadcast<CorrectBroadcastEvent>("correct", { for: player.cuid });
                             if (this.bombTimer) clearTimeout(this.bombTimer);
                             resolve(true);
-                        } else this.broadcast("incorrect", { for: player.cuid });
+                        } else this.broadcast<IncorrectBroadcastEvent>("incorrect", { for: player.cuid });
                     });
-                } else this.broadcast("incorrect", { for: player.cuid });
+                } else this.broadcast<IncorrectBroadcastEvent>("incorrect", { for: player.cuid });
             };
 
             this.bombTimer = setTimeout(() => {
                 player.lives -= 1;
-                this.broadcast("damage", { for: player.cuid, lives: player.lives });
+                this.broadcast<DamageBroadcastEvent>("damage", { for: player.cuid, lives: player.lives });
                 resolve(false);
             }, length);
         });
@@ -246,7 +266,6 @@ export class Room {
             this.broadcastState();
 
             if (await this.waitForPlayerToSubmitCorrect(this.currentPlayer, this.bombExplodesIn || this.rules.minRoundTimer * 1000)) {
-                this.broadcast("correct", { for: this.currentPlayer.cuid });
                 this.newPrompt();
                 this.renewBombTimer();
                 this.broadcastState();
@@ -266,7 +285,7 @@ export class Room {
 
     addPlayer(player: GamePlayer) {
         this.players.push(player);
-        this.broadcast("join", { cuid: player.cuid, name: player.name });
+        this.broadcast<JoinBroadcastEvent>("join", player.objectify());
     }
 
     addPlayingPlayer(player: GamePlayer) {
@@ -281,17 +300,17 @@ export class Room {
 
     removePlayer(player: GamePlayer) {
         this.players = this.players.filter(p => p !== player);
-        this.broadcast("leave", { cuid: player.cuid });
+        this.broadcast<LeaveBroadcastEvent>("leave", { cuid: player.cuid });
     }
 
-    broadcast(type: GameBroadcastEvent["type"], data: GameBroadcastEvent["data"]) {
+    broadcast<T extends GameBroadcastEvent>(type: T["type"], data: T["data"]) {
         this.players.forEach(player => {
             player.send(type, data);
         });
     }
 
     broadcastState() {
-        this.broadcast("state", this.objectify());
+        this.broadcast<GameStateEvent>("state", this.objectify());
     }
 
     objectify(): GameStateEvent["data"] {
@@ -308,7 +327,7 @@ export class Room {
     }
 
     sendChat(from: GamePlayer, text: string) {
-        this.broadcast("chat", { from: from.cuid, text, at: new Date().getTime() });
+        this.broadcast<ChatBroadcastEvent>("chat", { from: from.cuid, text, at: new Date().getTime() });
     }
 
     startGame() {
@@ -319,7 +338,7 @@ export class Room {
     }
 
     async endGame() {
-        this.broadcast("end", { winner: this.alivePlayingPlayers[0]?.cuid, newRoundIn: 2000 });
+        this.broadcast<EndBroadcastEvent>("end", { winner: this.alivePlayingPlayers[0]?.cuid, newRoundIn: 2000 });
         await sleep(2000);
         this.playingPlayers = [];
         this.prompt = null;
