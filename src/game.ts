@@ -21,6 +21,9 @@ import {
     EndBroadcastEvent,
     TextBroadcastEvent,
     StartBroadcastEvent,
+    BaseGameState,
+    ErrorEvent,
+    PongEvent,
 } from "./interfaces";
 import generateCuid from "cuid";
 import { checkValid, getRandomPrompt } from "./wordmanager";
@@ -88,11 +91,15 @@ export class GamePlayer extends Player {
             this.room.broadcastState();
         });
         this.socket.on("error", console.error);
-        this.send("state", this.room.objectify());
+        this.send<GameStateEvent>("state", this.room.objectify());
     }
 
     send<T extends GameEvent | GameBroadcastEvent>(type: T["type"], data: T["data"], nonce?: nonce) {
         this.socket?.send(JSON.stringify({ type, data, nonce }));
+    }
+
+    sendError(message: string) {
+        this.send<ErrorEvent>("error", { message });
     }
 
     objectify(): PlayerData {
@@ -108,7 +115,7 @@ export class GamePlayer extends Player {
 
     handleSocketMessage(message: string) {
         if (!this.connected) {
-            this.send("error", { message: "You are not connected" });
+            this.send<ErrorEvent>("error", { message: "You are not connected" });
             return;
         }
 
@@ -117,7 +124,7 @@ export class GamePlayer extends Player {
             switch (data.type) {
                 case "chat":
                     if (data.data.text.length > 256) {
-                        this.send("error", { message: "Your message is too long" });
+                        this.sendError("Your message is too long");
                         return;
                     }
                     this.room.sendChat(this, data.data.text);
@@ -126,27 +133,27 @@ export class GamePlayer extends Player {
                     if (this.isMyTurn) {
                         this.text = data.data.text.toLowerCase();
                         if (this.text.length > 256) {
-                            this.send("error", { message: "Your word is too long" });
+                            this.sendError("Your word is too long");
                             return;
                         }
                         this.room.broadcast<TextBroadcastEvent>("text", { text: this.text, from: this.cuid });
                     }
                     break;
                 case "ping":
-                    this.send("pong", undefined, data.nonce);
+                    this.send<PongEvent>("pong", undefined, data.nonce);
                     break;
                 case "play":
                     if (!this.room.isPlaying) {
                         this.room.addPlayingPlayer(this);
                     } else {
-                        this.send("error", { message: "Game is already in progress" });
+                        this.sendError("Game is already in progress");
                     }
                     break;
                 case "submit":
                     if (this.isMyTurn) {
                         this.text = data.data.text.toLowerCase();
                         if (this.text.length > 256) {
-                            this.send("error", { message: "Your word is too long" });
+                            this.sendError("Your word is too long");
                             return;
                         }
                         this.room.broadcast<TextBroadcastEvent>("text", { text: this.text, from: this.cuid });
@@ -305,7 +312,7 @@ export class Room {
 
     broadcast<T extends GameBroadcastEvent>(type: T["type"], data: T["data"]) {
         this.players.forEach(player => {
-            player.send(type, data);
+            player.send<T>(type, data);
         });
     }
 
@@ -313,7 +320,7 @@ export class Room {
         this.broadcast<GameStateEvent>("state", this.objectify());
     }
 
-    objectify(): GameStateEvent["data"] {
+    objectify(): BaseGameState {
         return {
             players: this.players.map(player => player.objectify()),
             isPlaying: this.isPlaying,

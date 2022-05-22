@@ -12,6 +12,12 @@ export const defaultRules: Rules = {
     maxLives: 4,
 };
 
+export enum CloseReason {
+    NotFound = 4001,
+    ConnectedFromElsewhere = 4002,
+    InvalidAuthorizationToken = 4003,
+}
+
 export interface TokenData {
     sub: cuid;
     name: string;

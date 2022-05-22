@@ -1,14 +1,14 @@
 import Koa from "koa";
 import KoaRouter from "@koa/router";
 import koaCors from "@koa/cors";
-import koaStatic from "koa-static";
+// import koaStatic from "koa-static";
 import koaLogger from "koa-logger";
 import koaBody from "koa-body";
 import koaWs from "koa-easy-ws";
 import WebSocket from "ws";
 import { GamePlayer, Player, Room, validateToken } from "./game";
 import jwt from "jsonwebtoken";
-import { RoomCreationData, RoomData } from "./interfaces";
+import { CloseReason, RoomCreationData, RoomData } from "./interfaces";
 import generateCuid from "cuid";
 import process from "process";
 
@@ -110,14 +110,14 @@ router.get("/room/:id/ws", async (ctx, next) => {
         const queryAuth = (ctx.request.query["authorization"] || []) as string;
         const authorizationToken = ctx.request.header.authorization?.split(" ")[1] || queryAuth;
         if (!authorizationToken) {
-            ws.close(1008, "No authorization token provided");
+            ws.close(CloseReason.InvalidAuthorizationToken, "No authorization token provided");
             ctx.status = 401;
             ctx.body = { error: "No authorization token provided" };
             return;
         }
         const room = rooms[ctx.params.id || ""];
         if (!room) {
-            ws.close(1008, "Room not found");
+            ws.close(CloseReason.NotFound, "Room not found");
             ctx.status = 404;
             ctx.body = { error: "Room not found" };
             return;
@@ -126,7 +126,7 @@ router.get("/room/:id/ws", async (ctx, next) => {
         if (data && data.name && data.sub) {
             const player = room.players.find(player => player.cuid === data.sub);
             if (player) {
-                player.socket.close(1008, "Connected from other location");
+                player.socket.close(CloseReason.ConnectedFromElsewhere, "Connected from other location");
                 player.socket = ws;
                 player.initiatePlayer();
             } else {
@@ -141,7 +141,7 @@ router.get("/room/:id/ws", async (ctx, next) => {
 app.use(koaLogger());
 app.use(koaCors());
 app.use(koaBody());
-app.use(koaStatic(__dirname + "/public"));
+// app.use(koaStatic(__dirname + "/public"));
 app.use(koaWs());
 app.use(router.routes());
 app.use(router.allowedMethods());
