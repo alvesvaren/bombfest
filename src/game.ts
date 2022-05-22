@@ -28,9 +28,7 @@ import {
 import generateCuid from "cuid";
 import { checkValid, getRandomPrompt } from "./wordmanager";
 
-export const validateToken = (token: string) => {
-    return jwt.verify(token, jwtSecret);
-};
+export const validateToken = (token: string) => jwt.verify(token, jwtSecret);
 
 export const sleep = async (duration: number) => await new Promise<void>(resolve => setTimeout(resolve, duration));
 
@@ -48,9 +46,7 @@ export class Player {
 
     static fromToken(token: string) {
         const data = jwt.decode(token, { json: true });
-        if (data && data.sub && data.name) {
-            return new Player(data.name, data.sub);
-        }
+        if (data && data.sub && data.name) return new Player(data.name, data.sub);
         return null;
     }
 }
@@ -92,6 +88,8 @@ export class GamePlayer extends Player {
         });
         this.socket.on("error", console.error);
         this.send<GameStateEvent>("state", this.room.objectify());
+        const startsIn = this.room.gameStartsIn;
+        if (startsIn) this.send<StartBroadcastEvent>("start", { in: startsIn });
     }
 
     send<T extends GameEvent | GameBroadcastEvent>(type: T["type"], data: T["data"], nonce?: nonce) {
@@ -114,28 +112,19 @@ export class GamePlayer extends Player {
     }
 
     handleSocketMessage(message: string) {
-        if (!this.connected) {
-            this.send<ErrorEvent>("error", { message: "You are not connected" });
-            return;
-        }
+        if (!this.connected) return this.send<ErrorEvent>("error", { message: "You are not connected" });
 
         try {
             const data: GameEvent = JSON.parse(message);
             switch (data.type) {
                 case "chat":
-                    if (data.data.text.length > 256) {
-                        this.sendError("Your message is too long");
-                        return;
-                    }
+                    if (data.data.text.length > 256) return this.sendError("Your message is too long");
                     this.room.sendChat(this, data.data.text);
                     break;
                 case "text":
                     if (this.isMyTurn) {
                         this.text = data.data.text.toLowerCase();
-                        if (this.text.length > 256) {
-                            this.sendError("Your word is too long");
-                            return;
-                        }
+                        if (this.text.length > 256) return this.sendError("Your word is too long");
                         this.room.broadcast<TextBroadcastEvent>("text", { text: this.text, from: this.cuid });
                     }
                     break;
@@ -143,19 +132,13 @@ export class GamePlayer extends Player {
                     this.send<PongEvent>("pong", undefined, data.nonce);
                     break;
                 case "play":
-                    if (!this.room.isPlaying) {
-                        this.room.addPlayingPlayer(this);
-                    } else {
-                        this.sendError("Game is already in progress");
-                    }
+                    if (!this.room.isPlaying) this.room.addPlayingPlayer(this);
+                    else this.sendError("Game is already in progress");
                     break;
                 case "submit":
                     if (this.isMyTurn) {
                         this.text = data.data.text.toLowerCase();
-                        if (this.text.length > 256) {
-                            this.sendError("Your word is too long");
-                            return;
-                        }
+                        if (this.text.length > 256) return this.sendError("Your word is too long");
                         this.room.broadcast<TextBroadcastEvent>("text", { text: this.text, from: this.cuid });
                         this.room.submitAttempt(data.data.text.toLowerCase());
                     }
@@ -181,18 +164,22 @@ export class Room {
     rules: Rules = defaultRules;
     currentPlayer: GamePlayer | null = null;
     startWaitTime = 10000;
+    startsAt: number | null = null;
     submitAttempt: (word: string) => void = () => {};
 
     constructor(name: string, isPrivate: boolean = false) {
         this.cuid = generateCuid();
         this.isPrivate = isPrivate;
-        this.name = name;
-
         this.startGameLoop();
+        this.name = name;
     }
 
     get bombExplodesIn() {
-        return this.bombExplodesAt ? this.bombExplodesAt - new Date().getTime() : null;
+        return this.bombExplodesAt ? this.bombExplodesAt - Date.now() : null;
+    }
+
+    get gameStartsIn() {
+        return this.startsAt ? this.startsAt - Date.now() : null;
     }
 
     get playerCount() {
@@ -204,6 +191,7 @@ export class Room {
             this.playingPlayers = this.playingPlayers.filter(p => p.connected);
             await sleep(100);
         }
+        this.startsAt = Date.now() + this.startWaitTime;
         this.broadcast<StartBroadcastEvent>("start", { in: this.startWaitTime });
         await sleep(this.startWaitTime);
     }
@@ -233,9 +221,8 @@ export class Room {
     *genPlayers() {
         let playerIndex = -1;
         while (true) {
-            do {
-                playerIndex += 1;
-            } while (!this.playingPlayers[playerIndex % this.playingPlayers.length]?.alive);
+            do playerIndex += 1;
+            while (!this.playingPlayers[playerIndex % this.playingPlayers.length]?.alive);
             yield this.playingPlayers[playerIndex % this.playingPlayers.length];
         }
     }
@@ -258,17 +245,14 @@ export class Room {
     async gameLoop() {
         this.broadcastState();
         await this.waitForPlayersToJoin();
-        this.startGame();
         const players = this.genPlayers();
-
+        this.startGame();
         this.newBombTimer();
 
         while (this.alivePlayingPlayers.length > 1) {
             // Handle one player's turn
             const generatedPlayer = players.next();
-            if (generatedPlayer.done || !generatedPlayer.value) {
-                break;
-            }
+            if (generatedPlayer.done || !generatedPlayer.value) break;
             this.currentPlayer = generatedPlayer.value;
             this.broadcastState();
 
@@ -285,9 +269,7 @@ export class Room {
     }
 
     async startGameLoop() {
-        while (true) {
-            await this.gameLoop();
-        }
+        while (true) await this.gameLoop();
     }
 
     addPlayer(player: GamePlayer) {
@@ -296,9 +278,7 @@ export class Room {
     }
 
     addPlayingPlayer(player: GamePlayer) {
-        if (this.playingPlayers.find(p => p.cuid === player.cuid)) {
-            return;
-        }
+        if (this.playingPlayers.find(p => p.cuid === player.cuid)) return;
         player.lives = this.rules.startingLives;
         player.text = "";
         this.playingPlayers.push(player);
@@ -311,9 +291,7 @@ export class Room {
     }
 
     broadcast<T extends GameBroadcastEvent>(type: T["type"], data: T["data"]) {
-        this.players.forEach(player => {
-            player.send<T>(type, data);
-        });
+        this.players.forEach(player => player.send<T>(type, data));
     }
 
     broadcastState() {
