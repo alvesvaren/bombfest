@@ -107,7 +107,7 @@ router.post("/rooms", ctx => {
 router.get("/room/:id/ws", async (ctx, next) => {
     if (ctx.ws) {
         const ws: WebSocket = await ctx.ws();
-        const queryAuth = (ctx.request.query["authorization"] || []) as string;
+        const queryAuth = (ctx.request.query["authorization"] || "") as string;
         const authorizationToken = ctx.request.header.authorization?.split(" ")[1] || queryAuth;
         if (!authorizationToken) {
             ws.close(CloseReason.InvalidAuthorizationToken, "No authorization token provided");
