@@ -11,6 +11,7 @@ import jwt from "jsonwebtoken";
 import { CloseReason, RoomCreationData, RoomData } from "./interfaces";
 import generateCuid from "cuid";
 import process from "process";
+import { z } from "zod";
 
 const config = {
     port: process.env.SERVER_PORT || 3001,
@@ -41,31 +42,29 @@ router.get("/", (ctx, next) => {
 });
 
 router.get("/rooms", ctx => {
-    (ctx.body as RoomData[]) = Object.entries(rooms).map(([cuid, room]) => ({
+    ctx.body = Object.values(rooms).map((room) => (room.isPrivate ? undefined : {
         cuid: room.cuid,
         name: room.name,
         player_count: room.players.filter(p => p.connected).length,
         language: room.language,
-    }));
+    })).filter((room) => room !== undefined) as RoomData[];
+});
+
+const accountSchema = z.object({
+    name: z.string().max(20, "Name too long").min(1, "Name too short"),
+    cuid: z.string().cuid().optional(),
 });
 
 router.post("/account", ctx => {
-    const playerData: {
-        name: string;
-        cuid?: string;
-    } = ctx.request.body;
+    const zRes = accountSchema.safeParse(ctx.request.body);
 
-    if (!playerData.name) {
+    if (!zRes.success) {
         ctx.status = 400;
-        ctx.body = { error: "Invalid name" };
+        ctx.body =  { errors: zRes.error.flatten().fieldErrors };
         return;
     }
 
-    if (playerData.name.length > 20) {
-        ctx.status = 400;
-        ctx.body = { error: "Name too long" };
-        return;
-    }
+    const playerData = zRes.data;
 
     const player = new Player(playerData.name, playerData.cuid || generateCuid());
 
@@ -74,23 +73,34 @@ router.post("/account", ctx => {
     };
 });
 
+const roomSchema = z.object({
+    name: z.string().max(20, "Name too short").min(1, "Name required"),
+    isPrivate: z.boolean(),
+    lang: z.literal("en_US").or(z.literal("sv_SE")),
+    rules: z.object({
+        minWordsPerPrompt: z.number().min(1, "WPP too low"),
+        maxWordsPerPrompt: z.number().min(1, "WPP too low"),
+        minRoundTimer: z.number().min(1, "Min round timer too short"),
+        minNewBombTimer: z.number().min(1, "Bomb timer too low"),
+        maxNewBombTimer: z.number().min(1, "Bomb timer too low"),
+        startingLives: z.number().min(1, "Starting lives too low"),
+        maxLives: z.number().min(1, "Max lives too low"),
+    }),
+});
+
 router.post("/rooms", ctx => {
-    const data: RoomCreationData = ctx.request.body;
+    const zRes = roomSchema.safeParse(ctx.request.body);
 
-    if (data.name.length > 20) {
+    if (!zRes.success) {
         ctx.status = 400;
-        ctx.body = { error: "Name too long" };
+        ctx.body = { errors: zRes.error.flatten().fieldErrors };
         return;
     }
 
-    if (!data.name.length) {
-        ctx.status = 400;
-        ctx.body = { error: "Name required" };
-        return;
-    }
+    const { data } = zRes;
 
     if (currentPlayer(ctx)) {
-        const room = new Room(data.name, data.isPrivate);
+        const room = new Room(data);
         rooms[room.cuid] = room;
         (ctx.body as RoomData) = {
             cuid: room.cuid,

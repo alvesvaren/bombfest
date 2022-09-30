@@ -204,6 +204,8 @@ export type GameEvent = ChatEvent | RoundEvent | TextEvent | PingEvent | RuleEve
 export interface RoomCreationData {
     name: string;
     isPrivate: boolean;
+    lang: DictionaryName;
+    rules: Rules;
 }
 
 export interface RoomData {

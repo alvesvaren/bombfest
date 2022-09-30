@@ -24,6 +24,7 @@ import {
     BaseGameState,
     ErrorEvent,
     PongEvent,
+    RoomCreationData,
 } from "./interfaces";
 import generateCuid from "cuid";
 import { checkValid, getRandomPrompt } from "./wordmanager";
@@ -167,11 +168,14 @@ export class Room {
     startsAt: number | null = null;
     submitAttempt: (word: string) => void = () => {};
 
-    constructor(name: string, isPrivate: boolean = false) {
+    constructor(data: RoomCreationData) {
+        const { name, isPrivate, lang, rules } = data;
         this.cuid = generateCuid();
         this.isPrivate = isPrivate;
-        this.startGameLoop();
+        this.language = lang;
         this.name = name;
+        this.rules = rules;
+        this.startGameLoop();
     }
 
     get bombExplodesIn() {
