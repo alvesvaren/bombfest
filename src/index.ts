@@ -8,7 +8,7 @@ import koaWs from "koa-easy-ws";
 import WebSocket from "ws";
 import { GamePlayer, Player, Room, validateToken } from "./game";
 import jwt from "jsonwebtoken";
-import { CloseReason, RoomCreationData, RoomData } from "./interfaces";
+import { CloseReason, defaultRules, RoomCreationData, RoomData } from "./interfaces";
 import generateCuid from "cuid";
 import process from "process";
 import { z } from "zod";
@@ -37,17 +37,23 @@ const currentPlayer = (ctx: Koa.Context) => {
     return null;
 };
 
-router.get("/", (ctx, next) => {
+router.get("/", ctx => {
     ctx.body = { online: true };
 });
 
 router.get("/rooms", ctx => {
-    ctx.body = Object.values(rooms).map((room) => (room.isPrivate ? undefined : {
-        cuid: room.cuid,
-        name: room.name,
-        player_count: room.players.filter(p => p.connected).length,
-        language: room.language,
-    })).filter((room) => room !== undefined) as RoomData[];
+    ctx.body = Object.values(rooms)
+        .map(room =>
+            room.isPrivate
+                ? undefined
+                : {
+                      cuid: room.cuid,
+                      name: room.name,
+                      player_count: room.players.filter(p => p.connected).length,
+                      language: room.language,
+                  }
+        )
+        .filter(room => room !== undefined) as RoomData[];
 });
 
 const accountSchema = z.object({
@@ -60,7 +66,7 @@ router.post("/account", ctx => {
 
     if (!zRes.success) {
         ctx.status = 400;
-        ctx.body =  { errors: zRes.error.flatten().fieldErrors };
+        ctx.body = { errors: zRes.error.flatten().fieldErrors };
         return;
     }
 
@@ -77,15 +83,27 @@ const roomSchema = z.object({
     name: z.string().max(20, "Name too short").min(1, "Name required"),
     isPrivate: z.boolean(),
     lang: z.literal("en_US").or(z.literal("sv_SE")),
-    rules: z.object({
-        minWordsPerPrompt: z.number().min(1, "WPP too low"),
-        maxWordsPerPrompt: z.number().min(1, "WPP too low"),
-        minRoundTimer: z.number().min(1, "Min round timer too short"),
-        minNewBombTimer: z.number().min(1, "Bomb timer too low"),
-        maxNewBombTimer: z.number().min(1, "Bomb timer too low"),
-        startingLives: z.number().min(1, "Starting lives too low"),
-        maxLives: z.number().min(1, "Max lives too low"),
-    }),
+    rules: z
+        .object({
+            minWordsPerPrompt: z
+                .number()
+                .min(0, "WPP too low")
+                .default(defaultRules.minWordsPerPrompt || 0),
+            maxWordsPerPrompt: z
+                .number()
+                .min(1, "WPP too low")
+                .nullable()
+                .default(defaultRules.maxWordsPerPrompt || null)
+                .transform(v => (v === null ? undefined : v)),
+            minRoundTimer: z.number().min(1, "Min round timer too short"),
+            minNewBombTimer: z.number().min(1, "Bomb timer too low"),
+            maxNewBombTimer: z.number().min(1, "Bomb timer too low"),
+            startingLives: z.number().min(1, "Starting lives too low"),
+            maxLives: z.number().min(1, "Max lives too low"),
+        })
+        .refine(data => data.minWordsPerPrompt < (data.maxWordsPerPrompt || Infinity), { message: "Min WPP must be lower than max" })
+        .refine(data => data.minNewBombTimer < data.maxNewBombTimer, { message: "Min bomb timer must be lower than max" })
+        .refine(data => data.startingLives < data.maxLives, { message: "Starting lives must be lower than max" }),
 });
 
 router.post("/rooms", ctx => {
