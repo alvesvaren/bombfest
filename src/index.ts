@@ -20,7 +20,9 @@ const config = {
 const app = new Koa();
 const router = new KoaRouter({ prefix: "/api" });
 
-const rooms: { [cuid: string]: Room } = {};
+export type Rooms = { [cuid: string]: Room };
+
+const rooms: Rooms = {};
 
 const currentPlayer = (ctx: Koa.Context) => {
     const token = ctx.request.header.authorization?.split(" ")[1];
@@ -118,7 +120,7 @@ router.post("/rooms", ctx => {
     const { data } = zRes;
 
     if (currentPlayer(ctx)) {
-        const room = new Room(data);
+        const room = new Room(data, rooms);
         rooms[room.cuid] = room;
         (ctx.body as RoomData) = {
             cuid: room.cuid,

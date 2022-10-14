@@ -28,6 +28,7 @@ import {
 } from "./interfaces";
 import generateCuid from "cuid";
 import { checkValid, getRandomPrompt } from "./wordmanager";
+import type { Rooms } from ".";
 
 export const validateToken = (token: string) => jwt.verify(token, jwtSecret);
 
@@ -166,15 +167,17 @@ export class Room {
     currentPlayer: GamePlayer | null = null;
     startWaitTime = 10000;
     startsAt: number | null = null;
+    rooms: Rooms;
     submitAttempt: (word: string) => void = () => {};
 
-    constructor(data: RoomCreationData) {
+    constructor(data: RoomCreationData, rooms: typeof Room.prototype.rooms) {
         const { name, isPrivate, lang, rules } = data;
         this.cuid = generateCuid();
         this.isPrivate = isPrivate;
         this.language = lang;
         this.name = name;
         this.rules = rules;
+        this.rooms = rooms;
         this.startGameLoop();
     }
 
@@ -191,9 +194,23 @@ export class Room {
     }
 
     async waitForPlayersToJoin() {
+        const checkEvery = 100;
+
+        // Will get set each loop when there are not enough players
+        let emptyTimeLeftBeforeDelete = Infinity;
         while (this.playingPlayers.length < 2) {
             this.playingPlayers = this.playingPlayers.filter(p => p.connected);
-            await sleep(100);
+            await sleep(checkEvery);
+
+            if (this.playerCount < 1) {
+                emptyTimeLeftBeforeDelete -= checkEvery;
+                if (emptyTimeLeftBeforeDelete <= 0) {
+                    delete this.rooms[this.cuid];
+                    return;
+                }
+            } else {
+                emptyTimeLeftBeforeDelete = 10000;
+            }
         }
         this.startsAt = Date.now() + this.startWaitTime;
         this.broadcast<StartBroadcastEvent>("start", { in: this.startWaitTime });
